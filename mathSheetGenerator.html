@@ -1,0 +1,227 @@
+<html>
+    <header>
+        <style>
+            body {
+                font-size:400%;
+                width: 8.5in;
+                height: 11.0in;
+            }
+            hr {
+                color : black;
+                border-color : black;
+                background-color: black;
+            }
+            h1 {
+                font-size: 1em;
+            }
+            h1, div.center-block {
+                text-align: center;
+            }
+            table, h1 {
+                margin-left: auto;
+                margin-right: auto;
+            }
+            table {
+                font-size: 1em;
+                border: none;
+            }
+            tr:nth-child(even) {
+                background-color: lightgrey;
+            }
+            tr {
+                display: block;
+                margin-bottom: .3em;
+                padding-bottom: .3em;
+            }
+            td.problems-field {
+                min-width : 1.2em;
+            }
+            td.spacer-col {
+                width : 1.2em;
+            }
+            td {
+                text-align : right;
+            }
+            td span {
+                display:inline-block;
+            }
+        </style>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+        <script>
+            $.urlParam = function(name,def){
+                var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+                if (results!=null) {
+                   return decodeURI(results[1]) || def;
+                }
+                return def;
+            }
+
+            window.parseBoolean = function(string) {
+                var val = string.toLowerCase();
+                if( val == 'true' )
+                    return true;
+                return false;
+            };
+        </script>
+        <script>
+            var _makeAnswer = $.urlParam('answer','none');
+            var _types = $.urlParam('types','subtraction');
+            var _min = parseInt($.urlParam('min',0));
+            var _max = parseInt($.urlParam('max',10));
+            var _multiple = parseInt($.urlParam('multiple',undefined));
+            var _only = parseBoolean($.urlParam('only','true'));
+            var _problemCount = parseInt($.urlParam('problemCount',25));
+            var _seed = parseInt($.urlParam('id',0));
+        </script>
+        <script>
+            // seeded random number generator
+            var randomGen = (function(seed) {
+                var s = seed || Math.floor(Math.random() * 10000);
+                _seed = s; // make sure global is same as calculated
+                return function() {
+                    var x = Math.sin(s++) * 10000;
+                    return x - Math.floor(x);
+                }
+            })(_seed);
+            var randomGen = (function(seed) {
+                var s = seed || Math.floor(Math.random() * 10000);
+                _seed = s; // make sure global is same as calculated
+                return function() {
+                    var x = Math.sin(s++) * 10000;
+                    return x - Math.floor(x);
+                }
+            })(_seed);
+            function getInRange(min,max) {
+                return randomGen() * (max - min) + min;
+            }
+            var getProblem = (function(types) {
+                var builders = {
+                    addition: function(min,max) { //
+                        var v1 = getInRange(min,max), v2 = getInRange(min,max);
+                        return Math.floor(v1) + ' + ' + Math.floor(v2);
+                    },
+                    subtraction: function(min,max) { //
+                        var v1 = getInRange(min,max), v2 = getInRange(min,max);
+                        return Math.floor(Math.max(v1,v2)) + ' - ' + Math.floor(Math.min(v1,v2));
+                    },
+                    multiplication: function(min,max,multiple,only) { //
+                        if(multiple==undefined) multiple = 1;
+                        var v1 = getInRange(min/multiple,max/multiple), v2 = only===true ? multiple :getInRange(min/multiple,max/multiple);
+                        return Math.floor(Math.max(v1,v2)) + ' x ' + Math.floor(Math.min(v1,v2));
+                    }
+                }
+                var activeBuilders = [];
+                var list = types.split(/\s*,\s*/);
+                for(var i in list) {
+                    var val = list[i];
+                    var key = val.toLowerCase();
+                    if( key in builders ) {
+                        activeBuilders.push( builders[key] );
+                    } else {
+                        alert('unknown option - ' + val );
+                    }
+                }
+
+                // this is problem generator
+                return function(min,max,multiple,only) {
+                    var index = Math.round( getInRange(0,activeBuilders.length-1) );
+                    return activeBuilders [ index ] (min,max,multiple,only);
+                }
+            })(_types);
+        </script>
+    </header>
+    <body>
+        <h1>
+            <script>
+                $('h1').text( _problemCount + ' Math problems id - ' + _seed );
+            </script>
+        </h1>
+        <div class="center-block">
+            <table id="math-problems"  cellspacing="0" cellpadding="0">
+            </table>
+        </div>
+        <script>
+            (function() {
+                var $problemsTable = $('#math-problems');
+                var cols = 5;
+                var _total = Math.ceil(_problemCount / cols);
+                // create the appropriate number of table cells
+                for( var i=0; i < _total; i++ ) { // cols
+                    var $row = $('<tr/>', {id: 'row-'+ i } );
+                    for( var j=0; j < cols; j++) {
+                        var val = (cols*i+j)+1;
+                        var columns = [];
+                        columns.push( 
+                            $('<td/>',{id: 'prob-'+val, class: 'problems-field' } ) 
+                        );
+                        if( (cols - j) > 1) {
+                            columns.push( 
+                                $('<td/>',{class: 'spacer spacer-col' } ) 
+                            );
+                        }
+                        $row.append( columns );
+                    }
+                    $problemsTable.append( $row );
+                }
+                $problemsTable.find('.problems-field').each(function(){
+                    var $this = $(this);
+                    var problem = getProblem(_min,_max,_multiple,_only);
+                    var items = problem.split(/\s+/);
+                    var $container = $('<div/>');
+                    var $subcontainer = $('<span/>');
+                    $container.append($subcontainer);
+                    for( var i in items ) {
+                        var item = items[i];
+                        if( $.isNumeric( item ) ) {
+                            $subcontainer.append(
+                                    $( "<div/>", {text: item, class: "value" } )
+                                );
+                        } else {
+                            $container.prepend(
+                                    $( "<span/>", {text: item, class: "operation" } )
+                                );
+                        }
+                    }
+                    var $containerwrapper = $("<div/>");
+                    $containerwrapper.append($container);
+                    $this.append($containerwrapper);
+                    $this.append( $("<hr/>") );
+                    var $answer = $("<div/>", {class:'answer'});
+                    var isFake = _makeAnswer != 'real';
+                    var op = $container.find(".operation").text();
+                    var mult = _multiple || 1;
+                    var values = [];
+                    $container.find('.value').each( function() {
+                        var val = parseInt( $(this).text() );
+                        values.push(val);
+                    } );
+                    var ans = "";
+                    switch( op ) {
+                        case '+':
+                            var real = values[0] + values[1];
+                            // don't short cut, needs to do calcs so the random seed matches for fake and answer key
+                            ans = Math.floor(getInRange( Math.min(values[0], values[1] ), Math.ceil( real * 1.25 ) ) );
+                            if (!isFake) {ans = real; }
+                            break;
+                        case '-':
+                            var real = values[0] - values[1];
+                            // don't short cut, needs to do calcs so the random seed matches for fake and answer key
+                            ans = Math.floor(getInRange( Math.floor(real * 0.75) , Math.max(values[0], values[1] ) ) );
+                            if(!isFake){ans = real; }
+                            break;
+                        case 'x':
+                            var real = values[0] * values[1];
+                            // don't short cut, needs to do calcs so the random seed matches for fake and answer key
+                            ans = Math.round(Math.floor(getInRange( Math.max(values[0], values[1] ), real ) ) / mult) * mult;
+                            if(!isFake){ ans = real; }
+                            break;
+                    }
+                    if( _makeAnswer != 'none' ) {
+                        $answer.text( ans );
+                    }
+                    $this.append( $answer );
+                });
+            })();
+        </script>
+    </body>
+</html>
